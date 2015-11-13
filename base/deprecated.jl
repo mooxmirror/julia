@@ -904,3 +904,5 @@ end
 export isreadable, iswritable, isexecutable
 
 @deprecate RemoteRef RemoteChannel
+
+@deprecate isgeneric(f) true
