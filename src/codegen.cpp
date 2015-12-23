@@ -4432,8 +4432,8 @@ static void emit_function(jl_lambda_info_t *lam, jl_llvm_functions_t *declaratio
     ctx.funcName = jl_symbol_name(lam->name);
     ctx.vaName = NULL;
     ctx.vaStack = false;
-    // ctx.inbounds.push_back(false);
-    // ctx.boundsCheck.push_back(true);
+    ctx.inbounds.push_back(false);
+    ctx.boundsCheck.push_back(false);
     ctx.cyclectx = cyclectx;
 
     // step 2. process var-info lists to see what vars are captured, need boxing
@@ -5338,6 +5338,13 @@ static void emit_function(jl_lambda_info_t *lam, jl_llvm_functions_t *declaratio
                 BasicBlock *bb =
                     BasicBlock::Create(getGlobalContext(), "ret", ctx.f);
                 builder.SetInsertPoint(bb);
+            }
+        }
+        // boundscheck elision
+        else if (is_inbounds(&ctx) && !ctx.boundsCheck.empty() && ctx.boundsCheck.back()) {
+            // skip expression unless it modifies the boundsCheck stack
+            if (jl_is_expr(stmt) && ((jl_expr_t*)stmt)->head == boundscheck_sym) {
+                (void)emit_expr(stmt, &ctx, false, false);
             }
         }
         else {
