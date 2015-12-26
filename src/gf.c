@@ -907,10 +907,11 @@ JL_DLLEXPORT jl_lambda_info_t *jl_instantiate_staged(jl_methlist_t *m, jl_tuplet
         jl_array_t *vi = jl_lam_vinfo(oldast);
         jl_array_grow_beg(oldargnames, nenv);
         jl_array_grow_beg(vi, nenv);
+        jl_cellset(oldargnames, 0, jl_cellref(oldargnames, nenv));
         // prepend static parameter names onto arg list and vinfo list
         for (size_t i = 0; i < nenv; i++) {
             jl_sym_t *s = ((jl_tvar_t*)jl_svecref(env, i*2))->name;
-            jl_cellset(oldargnames, i, s);
+            jl_cellset(oldargnames, i+1, s);
             jl_array_t *v = jl_alloc_cell_1d(3);
             jl_cellset(v, 0, s); jl_cellset(v, 1, jl_any_type), jl_cellset(v, 2, jl_box_long(0));
             jl_cellset(vi, i, v);
@@ -924,7 +925,8 @@ JL_DLLEXPORT jl_lambda_info_t *jl_instantiate_staged(jl_methlist_t *m, jl_tuplet
 
     ex = jl_exprn(lambda_sym, 2);
     jl_array_t *argnames = jl_alloc_cell_1d(jl_array_len(oldargnames)-nenv);
-    for (size_t i = 0; i < jl_array_len(argnames); ++i)
+    jl_cellset(argnames, 0, jl_cellref(oldargnames,0));
+    for (size_t i = 1; i < jl_array_len(argnames); ++i)
         jl_cellset(argnames, i, jl_cellref(oldargnames,i+nenv));
     jl_cellset(ex->args, 0, argnames);
     jl_expr_t *body = jl_exprn(jl_symbol("block"), 2);
@@ -940,8 +942,9 @@ JL_DLLEXPORT jl_lambda_info_t *jl_instantiate_staged(jl_methlist_t *m, jl_tuplet
         size_t na = nenv + jl_nparams(tt);
         jl_svec_t *argdata = jl_alloc_svec(na);
         JL_GC_PUSH1(&argdata);
-        size_t i = 0;
-        for(; i < nenv; i++) jl_svecset(argdata, i, jl_svecref(env, i*2+1));
+        jl_svecset(argdata, 0, jl_tparam(tt, 0));
+        size_t i = 1;
+        for(; i < nenv+1; i++) jl_svecset(argdata, i, jl_svecref(env, (i-1)*2+1));
         for(; i < na; i++)   jl_svecset(argdata, i, jl_tparam(tt, i-nenv));
         // invoke code generator
         jl_cellset(body->args, 1, jl_call_method_internal(func, jl_svec_data(argdata), na));
